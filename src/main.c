@@ -3,8 +3,11 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
+#include "raymath.h"
+
 #include "base.h"
 
+#include "utils_bitwise.c"
 #include "slime.c"
 #include "game.c"
 #include "render.c"

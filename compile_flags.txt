@@ -20,3 +20,4 @@
 -include ./src/raygui.h
 -include ./src/base.h
 -include ./src/slime.h
+-include ./src/utils_bitwise.h

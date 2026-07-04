@@ -1,8 +1,3 @@
-#include "slime.h"
-#include "game.h"
-#include "raylib.h"
-#include "raymath.h"
-
 #define MOVE_SPEED 100.0;
 #define RATE_HUNGER 10;
 
@@ -16,7 +11,11 @@ i32 Slime_Create(World *world) {
                           .timer = 0.0};
 
   world->slime_data[entity_id] = slime_data;
-  world->traits[entity_id] |= (TRAIT_SLIME | TRAIT_ACTIVE | TRAIT_POSITIONABLE);
+
+  i32 traits_slime =
+      FLAGS_COMBINE(TRAIT_SLIME, TRAIT_ACTIVE, TRAIT_POSITIONABLE);
+
+  world->traits[entity_id] = traits_slime;
 
   Entity_Position_Set(world, entity_id, 100, 100);
   Entity_RenderData_Create(world, entity_id, TEX_ID_SLIME_IDLE, 2.0);
@@ -25,12 +24,12 @@ i32 Slime_Create(World *world) {
 }
 
 void system_update_slimes(World *world, float dt) {
-  //TODO: find a place to store archetype flags
-  //TODO: Create bitflag helper functions to improve readablity
-  i32 flags = (TRAIT_ACTIVE | TRAIT_POSITIONABLE | TRAIT_POSITIONABLE);
+  // TODO: find a place to store archetype flags
+  // TODO: Create bitflag helper functions to improve readablity
+  i32 flags = FLAGS_COMBINE(TRAIT_SLIME, TRAIT_ACTIVE, TRAIT_POSITIONABLE);
 
   for (int i = 0; i < MAX_ENTITIES; i++) {
-    if ((world->traits[i] & (flags) == flags)) {
+    if (FLAG_CONTAINS(world->traits[i], flags)) {
       SlimeData *slime_data = &world->slime_data[i];
 
       slime_data->timer += dt;
@@ -47,7 +46,7 @@ void system_update_slimes(World *world, float dt) {
       }
 
       if (slime_data->hunger >= 100) {
-        world->traits[i] &= ~(TRAIT_ACTIVE);
+        world->traits[i] = FLAG_REMOVE(world->traits[i], TRAIT_ACTIVE);
       }
 
       switch (slime_data->mood) {
