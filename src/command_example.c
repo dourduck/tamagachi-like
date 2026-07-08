@@ -102,139 +102,6 @@ typedef struct Command {
   const CommandVTable *vtable;
 } Command;
 
-// vtable's execute now returns CommandStatus instead of void
-
-typedef struct {
-  Command base;
-  int line; // protothread resume point
-  float move_speed;
-  Vector2 pos;
-  Vector2 target_pos;
-} Command_Walk;
-
-typedef struct {
-  Command base;
-  int line;
-  Command_Walk walk_0;
-  Command_Walk walk_1;
-  Vector2 startPos;
-  Vector2 waypoint;
-  Vector2 finalPosition;
-} Command_Patrol;
-
-/* ^^^ Command ^^^ */
-
-float walk_distance(Command_Walk *cmd) {
-  return Vector2Distance(cmd->pos, cmd->target_pos);
-}
-
-CommandStatus command_walk_execute(void *self, float dt) {
-  Command_Walk *cmd = self;
-
-  PT_BEGIN(cmd);
-
-  while (walk_distance(cmd) > 4.0f) {
-    Vector2 dir = Vector2Normalize(Vector2Subtract(cmd->target_pos, cmd->pos));
-    cmd->pos = Vector2Add(cmd->pos, Vector2Scale(dir, cmd->move_speed * dt));
-
-    DrawCircleV(cmd->target_pos, 16, RED);
-    DrawCircleV(cmd->pos, 32, GREEN);
-
-    PT_YIELD(cmd);
-  }
-
-  PT_END(cmd);
-}
-
-static const CommandVTable command_walk_vt = {command_walk_execute};
-
-#define Command_Walk_Create(...) new(Command_Walk, command_walk_vt, __VA_ARGS__)
-
-/* ^^^ Command Walk ^^^ */
-
-/* vvv Command Patrol vvv */
-CommandStatus command_patrol_execute(void *self, float dt) {
-  Command_Patrol *cmd = self;
-  PT_BEGIN(cmd);
-
-  cmd->walk_0 =
-      Command_Walk_Create(.pos = cmd->startPos, .target_pos = cmd->waypoint,
-                          .move_speed = 100.0f);
-  PT_AWAIT(cmd, upcast(cmd->walk_0), dt)
-
-  cmd->walk_1 = Command_Walk_Create(.pos = cmd->waypoint,
-                                    .target_pos = cmd->finalPosition,
-                                    .move_speed = 100.0f);
-  PT_AWAIT(cmd, upcast(cmd->walk_1), dt)
-
-  PT_END(cmd);
-}
-
-static const CommandVTable command_patrol_vt = {command_patrol_execute};
-
-#define Command_Patrol_Create(...)                                             \
-  new(Command_Patrol, command_patrol_vt, __VA_ARGS__)
-
-typedef struct {
-  Command base;
-  int line;
-  Command_Patrol patrols[3];
-  bool done[3];
-} Command_Patrol_Group;
-
-CommandStatus command_patrol_group_execute(void *self, float dt) {
-  Command_Patrol_Group *cmd = self;
-  PT_BEGIN(cmd);
-
-  cmd->patrols[0] =
-      Command_Patrol_Create(.startPos = {.x = 400, .y = 500},
-                            .waypoint = {.x = 100, .y = 100},
-                            .finalPosition = {.x = 600, .y = 250});
-
-  cmd->patrols[1] =
-      Command_Patrol_Create(.startPos = {.x = 100, .y = 100},
-                            .waypoint = {.x = 600, .y = 250},
-                            .finalPosition = {.x = 400, .y = 500});
-
-  cmd->patrols[2] =
-      Command_Patrol_Create(.startPos = {.x = 600, .y = 250},
-                            .waypoint = {.x = 400, .y = 500},
-                            .finalPosition = {.x = 100, .y = 100});
-
-  cmd->done[0] = cmd->done[1] = cmd->done[2] = false;
-
-  for (;;) {
-    bool all_done = true;
-
-    for (int i = 0; i < 3; i++) {
-      if (cmd->done[i]) {
-        continue;
-      }
-      if (call(upcast(cmd->patrols[i]), execute, dt) == CMD_DONE) {
-        cmd->done[i] = true;
-      } else {
-        all_done = false;
-      }
-    }
-
-    if (all_done) {
-      break;
-    }
-
-    PT_YIELD(cmd);
-  }
-
-  PT_END(cmd);
-}
-
-static const CommandVTable command_patrol_group_vt = {
-    command_patrol_group_execute};
-
-#define Command_Patrol_Group_Create(...)                                       \
-  new(Command_Patrol_Group, command_patrol_group_vt, __VA_ARGS__)
-
-/* ^^^ Command Patrol ^^^ */
-
 typedef struct {
   Arena frame_arena;     // transient, reset every tick
   Command **frame_items; // one-shot commands allocated this tick
@@ -348,6 +215,146 @@ void cmdbuf_destroy(CommandBuffer *buf) {
 
 /* ^^^ Command Buffer ^^^ */
 
+// vtable's execute now returns CommandStatus instead of void
+
+typedef struct {
+  Command base;
+  int line; // protothread resume point
+  float move_speed;
+  Vector2 pos;
+  Vector2 target_pos;
+} Command_Walk;
+
+typedef struct {
+  Command base;
+  int line;
+  Command_Walk walk_0;
+  Command_Walk walk_1;
+  Vector2 startPos;
+  Vector2 waypoint;
+  Vector2 finalPosition;
+} Command_Patrol;
+
+/* ^^^ Command ^^^ */
+
+float walk_distance(Command_Walk *cmd) {
+  return Vector2Distance(cmd->pos, cmd->target_pos);
+}
+
+CommandStatus command_walk_execute(void *self, float dt) {
+  Command_Walk *cmd = self;
+
+  PT_BEGIN(cmd);
+
+  while (walk_distance(cmd) > 4.0f) {
+    Vector2 dir = Vector2Normalize(Vector2Subtract(cmd->target_pos, cmd->pos));
+    cmd->pos = Vector2Add(cmd->pos, Vector2Scale(dir, cmd->move_speed * dt));
+
+    DrawCircleV(cmd->target_pos, 16, RED);
+    DrawCircleV(cmd->pos, 32, GREEN);
+
+    PT_YIELD(cmd);
+  }
+
+  PT_END(cmd);
+}
+
+static const CommandVTable command_walk_vt = {command_walk_execute};
+
+#define Command_Walk_Create(...) new(Command_Walk, command_walk_vt, __VA_ARGS__)
+
+/* ^^^ Command Walk ^^^ */
+
+/* vvv Command Patrol vvv */
+CommandStatus command_patrol_execute(void *self, float dt) {
+  Command_Patrol *cmd = self;
+  PT_BEGIN(cmd);
+
+  cmd->walk_0 =
+      Command_Walk_Create(.pos = cmd->startPos, .target_pos = cmd->waypoint,
+                          .move_speed = 100.0f);
+  PT_AWAIT(cmd, upcast(cmd->walk_0), dt)
+
+  cmd->walk_1 = Command_Walk_Create(.pos = cmd->waypoint,
+                                    .target_pos = cmd->finalPosition,
+                                    .move_speed = 100.0f);
+  PT_AWAIT(cmd, upcast(cmd->walk_1), dt)
+
+  PT_END(cmd);
+}
+
+static const CommandVTable command_patrol_vt = {command_patrol_execute};
+
+#define Command_Patrol_Create(...)                                             \
+  new(Command_Patrol, command_patrol_vt, __VA_ARGS__)
+
+typedef struct {
+  Command base;
+  int line;
+  Command_Patrol patrols[3];
+  bool done[3];
+  CommandBuffer *buf;
+} Command_Patrol_Group;
+
+CommandStatus command_patrol_group_execute(void *self, float dt) {
+  Command_Patrol_Group *cmd = self;
+  PT_BEGIN(cmd);
+
+  cmd->patrols[0] =
+      Command_Patrol_Create(.startPos = {.x = 400, .y = 500},
+                            .waypoint = {.x = 100, .y = 100},
+                            .finalPosition = {.x = 600, .y = 250});
+
+  cmd->patrols[1] =
+      Command_Patrol_Create(.startPos = {.x = 100, .y = 100},
+                            .waypoint = {.x = 600, .y = 250},
+                            .finalPosition = {.x = 400, .y = 500});
+
+  cmd->patrols[2] =
+      Command_Patrol_Create(.startPos = {.x = 600, .y = 250},
+                            .waypoint = {.x = 400, .y = 500},
+                            .finalPosition = {.x = 100, .y = 100});
+
+  cmd->done[0] = cmd->done[1] = cmd->done[2] = false;
+
+  for (;;) {
+    bool all_done = true;
+
+    for (int i = 0; i < 3; i++) {
+      if (cmd->done[i]) {
+        continue;
+      }
+      if (call(upcast(cmd->patrols[i]), execute, dt) == CMD_DONE) {
+        cmd->done[i] = true;
+      } else {
+        all_done = false;
+      }
+    }
+
+    if (all_done) {
+      break;
+    }
+
+    PT_YIELD(cmd);
+  }
+
+  cmdbuf_push_coroutine_val(
+      cmd->buf, Command_Patrol,
+      Command_Patrol_Create(.startPos = {.x = 600, .y = 600},
+                            .waypoint = {.x = 600, .y = 0},
+                            .finalPosition = {.x = 0, .y = 600}));
+
+  PT_END(cmd);
+}
+
+static const CommandVTable command_patrol_group_vt = {
+    command_patrol_group_execute};
+
+#define Command_Patrol_Group_Create(...)                                       \
+  new(Command_Patrol_Group, command_patrol_group_vt, __VA_ARGS__)
+
+/* ^^^ Command Patrol ^^^ */
+
 /* vvv MAIN vvv */
 int main(void) {
   InitWindow(800, 600, "game");
@@ -365,23 +372,24 @@ int main(void) {
   cmdbuf_push_coroutine_val(
       &buf, Command_Patrol_Group,
       Command_Patrol_Group_Create(
-              .patrols = {
-                  Command_Patrol_Create(.startPos = {.x = 400, .y = 500},
-                                        .waypoint = {.x = 100, .y = 100},
-                                        .finalPosition = {.x = 600, .y = 250}),
-                  Command_Patrol_Create(.startPos = {.x = 100, .y = 100},
-                                        .waypoint = {.x = 600, .y = 250},
-                                        .finalPosition = {.x = 400, .y = 500}),
-                  Command_Patrol_Create(.startPos = {.x = 600, .y = 250},
-                                        .waypoint = {.x = 400, .y = 500},
-                                        .finalPosition = {.x = 100,
-                                                          .y = 100})}));
+              .patrols =
+                  {Command_Patrol_Create(.startPos = {.x = 400, .y = 500},
+                                         .waypoint = {.x = 100, .y = 100},
+                                         .finalPosition = {.x = 600, .y = 250}),
+                   Command_Patrol_Create(.startPos = {.x = 100, .y = 100},
+                                         .waypoint = {.x = 600, .y = 250},
+                                         .finalPosition = {.x = 400, .y = 500}),
+                   Command_Patrol_Create(.startPos = {.x = 600, .y = 250},
+                                         .waypoint = {.x = 400, .y = 500},
+                                         .finalPosition = {.x = 100,
+                                                           .y = 100})},
+              .buf = &buf));
 
-  cmdbuf_push_coroutine_val(
-      &buf, Command_Patrol,
-      Command_Patrol_Create(.startPos = {.x = 600, .y = 600},
-                            .waypoint = {.x = 600, .y = 0},
-                            .finalPosition = {.x = 0, .y = 600}));
+  // cmdbuf_push_coroutine_val(
+  //     &buf, Command_Patrol,
+  //     Command_Patrol_Create(.startPos = {.x = 600, .y = 600},
+  //                           .waypoint = {.x = 600, .y = 0},
+  //                           .finalPosition = {.x = 0, .y = 600}));
 
   // Tick repeatedly until the coroutine actually finishes, instead of
   // a single tick (which would only advance ~0.017 units and then get
