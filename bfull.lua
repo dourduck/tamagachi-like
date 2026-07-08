@@ -1,8 +1,10 @@
 #!/usr/bin/env lua
 
 os.execute("echo '[***BULIDING***]'")
+-- os.execute(
+-- 	"gcc -o game ./lib/raygui.so ./src/main.c -I./include/ -L./lib/ -lraylib -Wl,-rpath,$(pwd)/lib/ -lm -lpthread -ldl -lrt -lX11")
 os.execute(
-	"gcc -o game ./lib/raygui.so ./src/main.c -I./include/ -L./lib/ -lraylib -Wl,-rpath,$(pwd)/lib/ -lm -lpthread -ldl -lrt -lX11")
+	"gcc -o command_example ./lib/raygui.so ./src/command_example.c -I./include/ -L./lib/ -lraylib -Wl,-rpath,$(pwd)/lib/ -lm -lpthread -ldl -lrt -lX11")
 
 -- os.execute("mv src/raygui.h src/raygui.c")
 -- os.execute(
